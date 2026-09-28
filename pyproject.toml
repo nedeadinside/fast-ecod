@@ -3,11 +3,11 @@ requires = ["maturin>=1.9,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "ecod-library"
+name = "fast-ecod"
 requires-python = ">=3.9"
 dependencies = ["numpy"]
 dynamic = ["version"]
 
 [tool.maturin]
 python-source = "python"
-module-name = "ecod_library._core"
+module-name = "fast_ecod._core"

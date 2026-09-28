@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
 
-/// Rust core of ecod_library.
+/// Rust core of fast_ecod.
 #[pymodule]
 mod _core {}
