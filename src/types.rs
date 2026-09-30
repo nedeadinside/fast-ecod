@@ -1,16 +1,17 @@
 use crate::errors::Error;
+use num_traits::Float;
 
 /// may be i will add another types later
-pub type FloatMatrix = Vec<Vec<f32>>;
-pub type FloatVector = Vec<f32>;
+pub type FloatMatrix<T> = Vec<Vec<T>>;
+pub type FloatVector<T> = Vec<T>;
 
 /// Base trait to initialize model parameters
-pub trait Fit {
+pub trait Fit<T: Float> {
     type Model;
-    fn fit(&self, x: &FloatMatrix) -> Result<Self::Model, Error>;
+    fn fit(&self, x: &FloatMatrix<T>) -> Result<Self::Model, Error>;
 }
 
 /// Base trait to get predictions from model
-pub trait Predict {
-    fn decision_function(&self, x: &FloatMatrix) -> Result<FloatVector, Error>;
+pub trait Predict<T: Float> {
+    fn decision_function(&self, x: &FloatMatrix<T>) -> Result<FloatVector<T>, Error>;
 }
