@@ -5,7 +5,7 @@ use num_traits::Float;
 pub fn compute_score<T: Float>(scores: &FloatVector<T>) -> T {
     // Inputs are guaranteed to be positive and cannot cause the result
     // to overflow to infinity, so no additional validation is required.
-    scores
+    -scores
         .iter()
         .map(|&x| if x > T::zero() { x.ln() } else { T::zero() })
         .fold(T::zero(), |a, b| a + b)
