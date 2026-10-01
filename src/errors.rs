@@ -3,14 +3,7 @@ pub enum Error {
     /// Input matrix X is empty.
     EmptyInput,
     /// Rows of X have different lengths.
-    RaggedRows {
-        /// Index of the offending row.
-        row: usize,
-        /// Expected number of features.
-        expected: usize,
-        /// Actual number of features in this row.
-        got: usize,
-    },
+    RaggedRows,
     /// Number of features passed to predict does not match the number seen during fit.
     FeatureMismatch {
         /// Number of features seen during fit.
@@ -30,8 +23,8 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::EmptyInput => write!(f, "input is empty"),
-            Error::RaggedRows { row, expected, got } => {
-                write!(f, "row {row}: expected {expected} features, got {got}")
+            Error::RaggedRows => {
+                write!(f, "feature matrix has different sizes of rows")
             }
             Error::FeatureMismatch { expected, got } => {
                 write!(f, "model fitted on {expected} features, got {got}")
