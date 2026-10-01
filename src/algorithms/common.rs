@@ -1,4 +1,6 @@
-use crate::types::FloatVector;
+use crate::errors::Error;
+use crate::types::{FloatMatrix, FloatVector};
+
 use num_traits::Float;
 
 /// Computes the score as the sum of natural logarithms of the input values.
@@ -12,8 +14,8 @@ pub fn compute_score<T: Float>(scores: &FloatVector<T>) -> T {
 }
 
 /// Computes skewness of the given vector.
-pub fn compute_skewness<T: Float>(vector: &FloatVector<T>) -> Option<T> {
-    let n = T::from(vector.len())?;
+pub fn compute_skewness<T: Float>(vector: &FloatVector<T>) -> T {
+    let n = T::from(vector.len()).unwrap();
     let mean = vector.iter().fold(T::zero(), |a, &x| a + x) / n;
 
     let (sum2, sum3) = vector.iter().fold((T::zero(), T::zero()), |(s2, s3), &x| {
@@ -25,7 +27,36 @@ pub fn compute_skewness<T: Float>(vector: &FloatVector<T>) -> Option<T> {
     let m2 = sum2 / n;
     let m3 = sum3 / n;
     if m2 == T::zero() {
-        return None;
+        return T::zero();
     }
-    Some(m3 / (m2 * m2.sqrt()))
+    m3 / (m2 * m2.sqrt())
+}
+
+pub fn validate_shape<T: Float>(a: &FloatMatrix<T>, b: &FloatMatrix<T>) -> Result<(), Error> {
+    if a.len() != b.len() {
+        return Err(Error::FeatureMismatch {
+            expected: (a.len()),
+            got: (b.len()),
+        });
+    }
+    Ok(())
+}
+
+/// Validates that the feature matrix is non-empty, rectangular, and fully finite.
+pub fn validate_finity<T: Float>(feature_matrix: &FloatMatrix<T>) -> Result<(), Error> {
+    let n_cols = match feature_matrix.first() {
+        Some(row) if !row.is_empty() => row.len(),
+        _ => return Err(Error::EmptyInput),
+    };
+
+    for (row, vec) in feature_matrix.iter().enumerate() {
+        if vec.len() != n_cols {
+            return Err(Error::RaggedRows);
+        }
+        if let Some(col) = vec.iter().position(|v| !v.is_finite()) {
+            return Err(Error::NonFinite { row, col });
+        }
+    }
+
+    Ok(())
 }
