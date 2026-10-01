@@ -1,7 +1,14 @@
 use crate::errors::Error;
 use num_traits::Float;
 
-/// may be i will add another types later
+/// Enum for each ECOD decision function type
+pub enum ECODScoreMethod {
+    RIGHT,
+    LEFT,
+    AUTO,
+    MAX,
+}
+
 pub type FloatMatrix<T> = Vec<Vec<T>>;
 pub type FloatVector<T> = Vec<T>;
 
@@ -13,5 +20,9 @@ pub trait Fit<T: Float> {
 
 /// Base trait to get predictions from model
 pub trait Predict<T: Float> {
-    fn decision_function(&self, x: &FloatMatrix<T>) -> Result<FloatVector<T>, Error>;
+    fn decision_function(
+        &self,
+        x: &FloatMatrix<T>,
+        method: ECODScoreMethod,
+    ) -> Result<FloatVector<T>, Error>;
 }
