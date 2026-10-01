@@ -1,0 +1,79 @@
+use num_traits::float::{Float, TotalOrder};
+
+use super::common::{compute_score, compute_skewness, validate_finity, validate_shape};
+use crate::errors::Error;
+use crate::types::{ECODScoreMethod, Fit, FloatMatrix, FloatVector, Predict};
+
+pub struct InductiveECOD;
+pub struct InductiveECODModel<T> {
+    data: FloatMatrix<T>,
+    skewnesses: FloatVector<T>,
+}
+
+impl<T: Float + TotalOrder> Fit<T> for InductiveECOD {
+    type Model = InductiveECODModel<T>;
+
+    fn fit(&self, x: &FloatMatrix<T>) -> Result<Self::Model, Error> {
+        validate_finity(x)?;
+
+        Ok(InductiveECODModel {
+            data: x
+                .iter()
+                .map(|inner| {
+                    let mut v = inner.clone();
+                    v.sort_by(|a, b| a.total_cmp(b));
+                    v
+                })
+                .collect(),
+            skewnesses: x.iter().map(|vector| compute_skewness(vector)).collect(),
+        })
+    }
+}
+
+impl<T: Float + TotalOrder> Predict<T> for InductiveECODModel<T> {
+    fn decision_function(
+        &self,
+        x: &FloatMatrix<T>,
+        method: ECODScoreMethod,
+    ) -> Result<FloatVector<T>, Error> {
+        validate_shape(&self.data, x)?;
+        validate_finity(x)?;
+
+        let denominator = T::from(self.data.first().map_or(0, |col| col.len()) + 1).unwrap();
+        let row_count = x.first().map_or(0, |x| x.len());
+
+        match method {
+            ECODScoreMethod::RIGHT => {
+                let mut res: FloatVector<T> = Vec::with_capacity(row_count);
+                let mut temp: FloatVector<T> = Vec::with_capacity(x.len());
+
+                for i in 0..row_count {
+                    temp.clear();
+
+                    for (j, col) in x.iter().enumerate() {
+                        let sorted = &self.data[j];
+
+                        temp.push(
+                            T::from(sorted.len() - sorted.partition_point(|v| v < &col[i]) + 1)
+                                .unwrap()
+                                / denominator,
+                        );
+                    }
+
+                    res.push(compute_score(&temp));
+                }
+
+                Ok(res)
+            }
+            ECODScoreMethod::LEFT => {
+                todo!()
+            }
+            ECODScoreMethod::AUTO => {
+                todo!()
+            }
+            ECODScoreMethod::MAX => {
+                todo!()
+            }
+        }
+    }
+}
