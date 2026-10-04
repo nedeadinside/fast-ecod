@@ -3,7 +3,7 @@ use crate::types::{FloatMatrix, FloatVector};
 
 use num_traits::Float;
 
-/// Computes the score as the sum of natural logarithms of the input values.
+/// Computes the score as the negative sum of natural logarithms of the input values.
 pub fn compute_score<T: Float>(scores: &FloatVector<T>) -> T {
     // Inputs are guaranteed to be positive and cannot cause the result
     // to overflow to infinity, so no additional validation is required.
@@ -44,16 +44,16 @@ pub fn validate_shape<T: Float>(a: &FloatMatrix<T>, b: &FloatMatrix<T>) -> Resul
 
 /// Validates that the feature matrix is non-empty, rectangular, and fully finite.
 pub fn validate_finity<T: Float>(feature_matrix: &FloatMatrix<T>) -> Result<(), Error> {
-    let n_cols = match feature_matrix.first() {
-        Some(row) if !row.is_empty() => row.len(),
+    let n_rows = match feature_matrix.first() {
+        Some(col) if !col.is_empty() => col.len(),
         _ => return Err(Error::EmptyInput),
     };
 
-    for (row, vec) in feature_matrix.iter().enumerate() {
-        if vec.len() != n_cols {
+    for (col, vec) in feature_matrix.iter().enumerate() {
+        if vec.len() != n_rows {
             return Err(Error::RaggedRows);
         }
-        if let Some(col) = vec.iter().position(|v| !v.is_finite()) {
+        if let Some(row) = vec.iter().position(|v| !v.is_finite()) {
             return Err(Error::NonFinite { row, col });
         }
     }
