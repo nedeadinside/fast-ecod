@@ -4,13 +4,24 @@ use crate::types::{FloatMatrix, FloatVector};
 use num_traits::Float;
 
 /// Computes the score as the negative sum of natural logarithms of the input values.
-pub fn compute_score<T: Float>(scores: &FloatVector<T>) -> T {
+pub fn compute_score<T: Float>(scores: &mut FloatVector<T>, probs: impl Iterator<Item = T>) {
     // Inputs are guaranteed to be positive and cannot cause the result
     // to overflow to infinity, so no additional validation is required.
-    -scores
-        .iter()
-        .map(|&x| if x > T::zero() { x.ln() } else { T::zero() })
-        .fold(T::zero(), |a, b| a + b)
+    for (score, p) in scores.iter_mut().zip(probs) {
+        if p > T::zero() {
+            *score = *score - p.ln();
+        }
+    }
+}
+
+/// Right tail probability
+pub fn right_tail<T: Float>(sorted: &FloatVector<T>, value: T, denominator: T) -> T {
+    T::from(sorted.len() - sorted.partition_point(|v| *v < value) + 1).unwrap() / denominator
+}
+
+/// Left tail probability
+pub fn left_tail<T: Float>(sorted: &FloatVector<T>, value: T, denominator: T) -> T {
+    T::from(sorted.partition_point(|v| *v <= value) + 1).unwrap() / denominator
 }
 
 /// Computes skewness of the given vector.

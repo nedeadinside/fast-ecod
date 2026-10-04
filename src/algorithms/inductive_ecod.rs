@@ -1,6 +1,8 @@
 use num_traits::float::{Float, TotalOrder};
 
-use super::common::{compute_score, compute_skewness, validate_finity, validate_shape};
+use super::common::{
+    compute_score, compute_skewness, left_tail, right_tail, validate_finity, validate_shape,
+};
 use crate::errors::Error;
 use crate::types::{ECODScoreMethod, Fit, FloatMatrix, FloatVector, Predict};
 
@@ -39,41 +41,29 @@ impl<T: Float + TotalOrder> Predict<T> for InductiveECODModel<T> {
         validate_shape(&self.data, x)?;
         validate_finity(x)?;
 
+        // Consts
         let denominator = T::from(self.data.first().map_or(0, |col| col.len()) + 1).unwrap();
         let row_count = x.first().map_or(0, |x| x.len());
 
-        match method {
-            ECODScoreMethod::RIGHT => {
-                let mut res: FloatVector<T> = Vec::with_capacity(row_count);
-                let mut temp: FloatVector<T> = Vec::with_capacity(x.len());
+        let mut res: FloatVector<T> = vec![T::zero(); row_count];
 
-                for i in 0..row_count {
-                    temp.clear();
+        for ((col, sorted), &skewness) in x.iter().zip(&self.data).zip(&self.skewnesses) {
+            let right = |v: &T| right_tail(sorted, *v, denominator);
+            let left = |v: &T| left_tail(sorted, *v, denominator);
 
-                    for (j, col) in x.iter().enumerate() {
-                        let sorted = &self.data[j];
-
-                        temp.push(
-                            T::from(sorted.len() - sorted.partition_point(|v| v < &col[i]) + 1)
-                                .unwrap()
-                                / denominator,
-                        );
-                    }
-
-                    res.push(compute_score(&temp));
+            match method {
+                ECODScoreMethod::RIGHT => compute_score(&mut res, col.iter().map(right)),
+                ECODScoreMethod::LEFT => compute_score(&mut res, col.iter().map(left)),
+                ECODScoreMethod::AUTO if skewness >= T::zero() => {
+                    compute_score(&mut res, col.iter().map(right))
                 }
-
-                Ok(res)
-            }
-            ECODScoreMethod::LEFT => {
-                todo!()
-            }
-            ECODScoreMethod::AUTO => {
-                todo!()
-            }
-            ECODScoreMethod::MAX => {
-                todo!()
+                ECODScoreMethod::AUTO => compute_score(&mut res, col.iter().map(left)),
+                // Per-feature auto is either left or right, so min(left, right) covers it
+                ECODScoreMethod::MAX => {
+                    compute_score(&mut res, col.iter().map(|v| left(v).min(right(v))))
+                }
             }
         }
+        Ok(res)
     }
 }
