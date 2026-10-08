@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     /// Input matrix X is empty.
     EmptyInput,

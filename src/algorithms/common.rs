@@ -71,3 +71,154 @@ pub fn validate_finity<T: Float>(feature_matrix: &FloatMatrix<T>) -> Result<(), 
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EPS: f64 = 1e-12;
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < EPS,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    fn matrix(cols: &[&[f32]]) -> FloatMatrix<f32> {
+        cols.iter().map(|c| c.to_vec()).collect()
+    }
+
+    // Shape
+    #[test]
+    fn validate_shape_accepts_same_number_of_features() {
+        let a = matrix(&[&[1.0, 2.0], &[3.0, 4.0]]);
+        assert_eq!(validate_shape(&a, &a), Ok(()));
+    }
+
+    #[test]
+    fn validate_shape_rejects_fewer_features() {
+        let a = matrix(&[&[1.0], &[2.0], &[3.0]]);
+        let b = matrix(&[&[1.0]]);
+        assert_eq!(
+            validate_shape(&a, &b),
+            Err(Error::FeatureMismatch {
+                expected: 3,
+                got: 1
+            })
+        );
+    }
+
+    #[test]
+    fn validate_shape_rejects_more_features() {
+        let a = matrix(&[&[1.0]]);
+        let b = matrix(&[&[1.0], &[2.0]]);
+        assert_eq!(
+            validate_shape(&a, &b),
+            Err(Error::FeatureMismatch {
+                expected: 1,
+                got: 2
+            })
+        );
+    }
+
+    #[test]
+    fn validate_shape_ignores_number_of_rows() {
+        let a = matrix(&[&[1.0, 2.0, 3.0]]);
+        let b = matrix(&[&[1.0]]);
+        assert_eq!(validate_shape(&a, &b), Ok(()));
+    }
+
+    // Finity
+    #[test]
+    fn validate_finity_rejects_empty_matrix() {
+        let m: FloatMatrix<f32> = vec![];
+        assert_eq!(validate_finity(&m), Err(Error::EmptyInput));
+    }
+
+    #[test]
+    fn validate_finity_rejects_empty_first_column() {
+        let m: FloatMatrix<f32> = vec![vec![]];
+        assert_eq!(validate_finity(&m), Err(Error::EmptyInput));
+    }
+
+    #[test]
+    fn validate_finity_rejects_ragged_columns() {
+        let m = matrix(&[&[1.0, 2.0, 3.0], &[1.0, 2.0]]);
+        assert_eq!(validate_finity(&m), Err(Error::RaggedRows));
+    }
+
+    #[test]
+    fn validate_finity_reports_nan_position() {
+        let m = matrix(&[&[1.0, 2.0], &[3.0, 4.0], &[f32::NAN, 5.0]]);
+        assert_eq!(
+            validate_finity(&m),
+            Err(Error::NonFinite { row: 0, col: 2 })
+        );
+    }
+
+    #[test]
+    fn validate_finity_rejects_infinities() {
+        for bad in [f32::INFINITY, f32::NEG_INFINITY] {
+            let m = matrix(&[&[1.0, bad]]);
+            assert_eq!(
+                validate_finity(&m),
+                Err(Error::NonFinite { row: 1, col: 0 })
+            );
+        }
+    }
+
+    #[test]
+    fn validate_finity_accepts_finite_matrix() {
+        let m = matrix(&[&[1.0, 2.0], &[3.0, 4.0]]);
+        assert_eq!(validate_finity(&m), Ok(()));
+    }
+
+    // Score
+    #[test]
+    fn compute_score_subtracts_ln_and_skips_non_positive() {
+        let mut scores: FloatVector<f64> = vec![0.0, 0.0, 10.0];
+        compute_score(&mut scores, [1.0, std::f64::consts::E, 0.0].into_iter());
+        assert_close(scores[0], 0.0); // ln(1) = 0
+        assert_close(scores[1], -1.0); // ln(e) = 1
+        assert_close(scores[2], 10.0); // p = 0 
+    }
+
+    #[test]
+    fn compute_score_leaves_tail_untouched_when_probs_shorter() {
+        let mut scores: FloatVector<f64> = vec![1.0, 2.0];
+        compute_score(&mut scores, std::iter::once(std::f64::consts::E));
+        assert_close(scores[0], 0.0);
+        assert_close(scores[1], 2.0);
+    }
+
+    // Tails
+    #[test]
+    fn right_tail_counts_values_ge_plus_one() {
+        let sorted: FloatVector<f64> = vec![1.0, 2.0, 2.0, 3.0];
+        let d = 5.0;
+        assert_close(right_tail(&sorted, 0.0, d), 5.0 / d); // 4 + 1
+        assert_close(right_tail(&sorted, 2.0, d), 4.0 / d); // 2,2,3 + 1
+        assert_close(right_tail(&sorted, 10.0, d), 1.0 / d); // 0 + 1
+    }
+
+    #[test]
+    fn left_tail_counts_values_le_plus_one() {
+        let sorted: FloatVector<f64> = vec![1.0, 2.0, 2.0, 3.0];
+        let d = 5.0;
+        assert_close(left_tail(&sorted, 0.0, d), 1.0 / d);
+        assert_close(left_tail(&sorted, 2.0, d), 4.0 / d); // 1,2,2 + 1
+        assert_close(left_tail(&sorted, 10.0, d), 5.0 / d);
+    }
+
+    // Skewness
+    #[test]
+    fn skewness_of_constant_vector_is_zero() {
+        assert_close(compute_skewness(&vec![3.0f64; 5]), 0.0);
+    }
+
+    #[test]
+    fn skewness_of_symmetric_vector_is_zero() {
+        assert_close(compute_skewness(&vec![1.0f64, 2.0, 3.0]), 0.0);
+    }
+}
