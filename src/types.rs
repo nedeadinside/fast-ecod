@@ -1,7 +1,10 @@
 use crate::errors::Error;
 use num_traits::Float;
+use pyo3::prelude::*;
 
 /// Enum for each ECOD decision function type
+#[pyclass(eq, eq_int, from_py_object)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum ECODScoreMethod {
     RIGHT,
     LEFT,

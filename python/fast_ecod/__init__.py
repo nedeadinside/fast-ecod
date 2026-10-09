@@ -1,3 +1,3 @@
-from fast_ecod import _core
+from fast_ecod._core import ECODScoreMethod, InductiveECOD
 
-__all__ = ["_core"]
+__all__ = ["ECODScoreMethod", "InductiveECOD"]
