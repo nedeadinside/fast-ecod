@@ -1,8 +1,6 @@
 # Stub file
 from collections.abc import Sequence
-from typing import final
-
-from typing_extensions import Self
+from typing import Self, final
 
 @final
 class ECODScoreMethod:
